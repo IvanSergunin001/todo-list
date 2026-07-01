@@ -116,8 +116,12 @@ func writeJson(w http.ResponseWriter, status int, data any) {
 		serverAnswer = v
 	default:
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Unsupported data type"})
-		return
+		err := errors.New("Unsupported data type")
+		serverAnswer = struct {
+			Error string `json:"error"`
+		}{
+			Error: err.Error(),
+		}
 	}
 
 	jsonData, err := json.Marshal(serverAnswer)
