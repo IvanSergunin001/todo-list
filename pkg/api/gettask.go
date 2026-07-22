@@ -1,9 +1,10 @@
 package api
 
 import (
-	database "Final_homework/pkg/db"
+	"context"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 func (e *Env) getTaskHandler(res http.ResponseWriter, req *http.Request) {
@@ -15,7 +16,10 @@ func (e *Env) getTaskHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	task, err := database.GetTask(e.DB, numId)
+	ctx, cancel := context.WithTimeout(req.Context(), 2*time.Second)
+	defer cancel()
+
+	task, err := e.Store.GetByID(ctx, numId)
 	if err != nil {
 		writeJson(res, http.StatusInternalServerError, err)
 		return

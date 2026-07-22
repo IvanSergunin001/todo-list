@@ -138,7 +138,7 @@ func weekInterval(date time.Time, daysOnWeek map[string]int, splitRepeat []strin
 	}
 	weekDay := date.Weekday()
 	weekDayNum := daysOnWeek[weekDay.String()]
-	days := strings.Split(splitRepeat[1], ",") // проблема
+	days := strings.Split(splitRepeat[1], ",")
 	numsStartWeek := make([]int, 0, len(days))
 	numsEndWeek := make([]int, 0, len(days))
 	var numsWeek int

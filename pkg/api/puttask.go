@@ -2,21 +2,21 @@ package api
 
 import (
 	database "Final_homework/pkg/db"
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strconv"
 	"time"
 )
 
 func (e *Env) putTaskHandler(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPut {
-		err := errors.New("method not allowed: must be PUT")
-		writeJson(res, http.StatusInternalServerError, err)
+		writeJson(res, http.StatusInternalServerError, errors.New("method not allowed: must be PUT"))
 		return
 	}
 
 	var newTask database.Task
+	var hollowResponse, _ = json.Marshal(struct{}{})
 
 	err := json.NewDecoder(req.Body).Decode(&newTask)
 	if err != nil {
@@ -26,8 +26,7 @@ func (e *Env) putTaskHandler(res http.ResponseWriter, req *http.Request) {
 	defer req.Body.Close()
 
 	if newTask.Title == "" {
-		err = errors.New("wrong title")
-		writeJson(res, http.StatusBadRequest, err)
+		writeJson(res, http.StatusBadRequest, errors.New("wrong title"))
 		return
 	}
 
@@ -36,16 +35,12 @@ func (e *Env) putTaskHandler(res http.ResponseWriter, req *http.Request) {
 	targetDateString := targetDate.Format("20060102") //время сейчас в формате строки
 	todayMidnight, _ := time.Parse("20060102", targetDateString)
 
-	if newTask.Date == "" {
-		newTask.Date = targetDateString
-	} else {
-		dateCheck := isValidDateFormat(newTask.Date)
-		if dateCheck != true {
-			err := errors.New("data not valid date format")
-			writeJson(res, http.StatusBadRequest, err)
-			return
-		}
+	finalDate, err := defaultDate(newTask.Date, targetDateString)
+	if err != nil {
+		writeJson(res, http.StatusBadRequest, err)
+		return
 	}
+	newTask.Date = finalDate
 
 	dateTimeFormat, err := time.Parse("20060102", newTask.Date) //дата в формате времени
 	if err != nil {
@@ -54,43 +49,29 @@ func (e *Env) putTaskHandler(res http.ResponseWriter, req *http.Request) {
 	}
 
 	if todayMidnight.After(dateTimeFormat) { //если настоящее время больше
-		if newTask.Repeat == "" {
-			newTask.Date = targetDateString
-		} else if newTask.Repeat != "" {
-			newTask.Date, err = NextDate(newTask.Date, targetDateString, newTask.Repeat)
-			if err != nil {
-				writeJson(res, http.StatusInternalServerError, err)
-				return
-			}
+		finalDate, err = resolveDateByRepeat(newTask.Repeat, newTask.Date, targetDateString)
+		if err != nil {
+			writeJson(res, http.StatusInternalServerError, err)
+			return
 		}
+		newTask.Date = finalDate
 	}
 
 	dateCheck := isValidDateFormat(newTask.Date)
 	if dateCheck != true {
-		err := errors.New("data not valid date format")
-		writeJson(res, http.StatusBadRequest, err)
+		writeJson(res, http.StatusBadRequest, errors.New("data not valid date format"))
 		return
 	}
 
-	numId, err := strconv.Atoi(newTask.ID)
-	if err != nil {
-		writeJson(res, http.StatusInternalServerError, err)
-		return
-	}
+	ctx, cancel := context.WithTimeout(req.Context(), 2*time.Second)
+	defer cancel()
 
-	err = database.UpdateTaskInDB(numId, newTask, e.DB)
-	if err != nil {
-		writeJson(res, http.StatusInternalServerError, err)
-		return
-	}
-
-	type Response struct{}
-	data, err := json.Marshal(Response{})
+	err = e.Store.UpdateTask(ctx, newTask)
 	if err != nil {
 		writeJson(res, http.StatusInternalServerError, err)
 		return
 	}
 	res.WriteHeader(http.StatusOK)
-	res.Write([]byte(data))
+	res.Write([]byte(hollowResponse))
 
 }

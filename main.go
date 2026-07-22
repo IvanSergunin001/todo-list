@@ -8,35 +8,36 @@ import (
 	"net/http"
 	"os"
 
-	_ "modernc.org/sqlite"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 func main() {
-	dbFile := os.Getenv("TODO_DBFILE")
-	if dbFile == "" {
-		dbFile = "scheduler.db"
+	dsn := os.Getenv("TODO_DBFILE")
+	if dsn == "" {
+		dsn = "host=localhost port=5432 user=postgres password=mypass dbname=scheduler sslmode=disable"
 	}
 
-	db, err := sql.Open("sqlite", dbFile)
+	db, err := sql.Open("pgx", dsn)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 	defer db.Close()
 
-	_, err = os.Stat(dbFile)
-	var install bool
-	if err != nil {
-		install = true
+	if err := db.Ping(); err != nil {
+		fmt.Println("Не удалось подключиться к PostgreSQL:", err)
+		return
 	}
 
-	if install == true {
-		err = database.Init(db, dbFile)
+	if err := database.Init(db); err != nil {
+		fmt.Println("Не удалось создать таблицы:", err)
+		return
 	}
 
 	fs := http.FileServer(http.Dir("./web"))
 	http.Handle("/", fs)
-	api.Init(db)
+	store := database.NewCustomerRepository(db)
+	api.Init(store)
 
 	port := os.Getenv("TODO_PORT")
 

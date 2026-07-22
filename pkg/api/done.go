@@ -1,7 +1,7 @@
 package api
 
 import (
-	database "Final_homework/pkg/db"
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -11,17 +11,12 @@ import (
 
 func (e *Env) doneTaskHandler(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
-		err := errors.New("method not allowed: must be POST")
-		writeJson(res, http.StatusInternalServerError, err)
-		return
-	}
-	type Response struct{}
-	data, err := json.Marshal(Response{})
-	if err != nil {
-		writeJson(res, http.StatusInternalServerError, err)
+		writeJson(res, http.StatusInternalServerError, errors.New("method not allowed: must be POST"))
 		return
 	}
 	id := req.URL.Query().Get("id")
+
+	var hollowResponse, _ = json.Marshal(struct{}{})
 
 	numId, err := strconv.Atoi(id)
 	if err != nil {
@@ -29,7 +24,10 @@ func (e *Env) doneTaskHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	task, err := database.GetTask(e.DB, numId)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	task, err := e.Store.GetByID(ctx, numId)
 	if err != nil {
 		writeJson(res, http.StatusInternalServerError, err)
 		return
@@ -40,13 +38,13 @@ func (e *Env) doneTaskHandler(res http.ResponseWriter, req *http.Request) {
 	now := targetDate.Format("20060102")
 
 	if task.Repeat == "" {
-		err = database.DeleteTaskInDB(numId, e.DB)
+		err = e.Store.DeleteTask(ctx, numId)
 		if err != nil {
 			writeJson(res, http.StatusInternalServerError, err)
 			return
 		} else {
 			res.WriteHeader(http.StatusOK)
-			res.Write([]byte(data))
+			res.Write([]byte(hollowResponse))
 			return
 		}
 	}
@@ -57,12 +55,12 @@ func (e *Env) doneTaskHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err = database.UpdateDate(numId, e.DB, newDate)
+	err = e.Store.UpdateByDate(ctx, numId, newDate)
 	if err != nil {
 		writeJson(res, http.StatusInternalServerError, err)
 		return
 	}
 	res.WriteHeader(http.StatusOK)
-	res.Write([]byte(data))
+	res.Write([]byte(hollowResponse))
 
 }
