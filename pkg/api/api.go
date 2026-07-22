@@ -1,14 +1,10 @@
 package api
 
 import (
-	"database/sql"
+	database "Final_homework/pkg/db"
 	"net/http"
 	"os"
 )
-
-type Env struct {
-	DB *sql.DB
-}
 
 func auth(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -22,7 +18,7 @@ func auth(next http.HandlerFunc) http.HandlerFunc {
 			var valid bool
 			valid = isValidToken(jwt, Secret)
 			if !valid {
-				http.Error(w, "Authentification required", http.StatusUnauthorized) //переделать
+				http.Error(w, "Authentification required", http.StatusUnauthorized)
 				return
 			}
 		}
@@ -30,9 +26,12 @@ func auth(next http.HandlerFunc) http.HandlerFunc {
 	})
 }
 
-func Init(db *sql.DB) {
+type Env struct {
+	Store database.TaskStoragePostgres
+}
 
-	env := &Env{DB: db}
+func Init(store database.TaskStoragePostgres) {
+	env := &Env{Store: store}
 
 	http.HandleFunc("/api/nextdate", nextDayHandler)
 	http.HandleFunc("/api/signin", signInHandler)

@@ -103,7 +103,7 @@ func TestEditTask(t *testing.T) {
 		assert.False(t, ok && fmt.Sprint(e) != "")
 
 		var task Task
-		err = db.Get(&task, `SELECT * FROM scheduler WHERE id=?`, id)
+		err = db.Get(&task, `SELECT * FROM scheduler WHERE id=$1`, id)
 		assert.NoError(t, err)
 
 		assert.Equal(t, id, strconv.FormatInt(task.ID, 10))

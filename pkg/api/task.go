@@ -7,7 +7,7 @@ import (
 func (e *Env) taskHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
-		e.addTaskHandler(w, r) //
+		e.addTaskHandler(w, r)
 	case http.MethodGet:
 		e.getTaskHandler(w, r)
 	case http.MethodPut:
